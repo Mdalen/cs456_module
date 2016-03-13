@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
+#include <linux/vmstat.h>
 
 #define procfs_name "pagefaults"
 
@@ -16,23 +17,22 @@
 MODULE_LICENSE("GPL");
 
 struct proc_dir_entry *Our_Proc_File;
-
+long unsigned long *error_num;
 
 int  procfile_read(char *buffer, char **buffer_location, 
         off_t offset, int buffer_length, int *eof, void * data){
     
     int ret;
-    long unsigned int error_num;
     
 
     printk(KERN_INFO "procfile_read (/proc/%s) called\n", procfs_name);
     
-    all_vm_events(&error_num);
+    all_vm_events(error_num);
 
     if (offset > 0) {
         ret = 0;
     }else{
-        ret = sprintf(buffer, "%lx Page Fault Errors\n", error_num);
+        ret = sprintf(buffer, "%lu Page Fault Errors\n", error_num[PGFAULT]);
     }
     return ret;
 }
@@ -40,6 +40,10 @@ int  procfile_read(char *buffer, char **buffer_location,
 int init_module(void){
     
     Our_Proc_File = create_proc_entry(procfs_name, 0644, NULL);
+    
+    error_num = kmalloc(NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) + 
+            sizeof(struct vm_event_state) + 100, GFP_KERNEL);
+
 
     if (Our_Proc_File == NULL) {
         remove_proc_entry(procfs_name, NULL);
